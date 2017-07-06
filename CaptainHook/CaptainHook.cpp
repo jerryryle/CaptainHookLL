@@ -35,11 +35,10 @@
 #include "HookLibrary.h"
 #include "NotificationIcon.h"
 
-// Window function
-LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+//
+// Constants
+//
 
-
-// Define messages
 enum wmapp_messages {
     WMAPP_HOOKMESSAGE = WM_APP + 1,
     WMAPP_NOTIFYCALLBACK
@@ -48,21 +47,35 @@ enum wmapp_messages {
 static UINT const UID_CAPTAINHOOK = 1;
 static UINT const IDT_KEYSTROKETIMER = 1;
 
-// Global variables
-static HWND g_hWnd = NULL;
-static HINSTANCE g_hInstance = NULL;
-static CNotificationIcon g_NotificationIcon;
+//
+// Function declarations
+//
 
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 static void RegisterWindowClass(HINSTANCE hInstance, LPCTSTR pszClassName, LPCTSTR pszMenuName, WNDPROC lpfnWndProc, WORD iconId);
 static void ShowContextMenu(HWND hWnd);
 static HWND CreateApplicationWindow(HINSTANCE hInstance);
 static INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
+static void HandleKeyEvent(HWND hWnd, WORD keycode, BOOL keyIsDown, BOOL keyWasDown, BOOL altKeyIsDown);
+
+//
+// Global variables
+//
+
+static HWND g_hWnd = NULL;
+static HINSTANCE g_hInstance = NULL;
+static CNotificationIcon g_NotificationIcon;
+
 
 int APIENTRY WinMain(HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
     LPSTR lpCmdLine,
     int nCmdShow)
 {
+    UNREFERENCED_PARAMETER(hPrevInstance);
+    UNREFERENCED_PARAMETER(lpCmdLine);
+    UNREFERENCED_PARAMETER(nCmdShow);
+
     g_hInstance = hInstance;
     g_hWnd = CreateApplicationWindow(g_hInstance);
 
@@ -79,7 +92,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
     case WM_CREATE:
+        /* Install the global keyboard hook. */
         InstallHook(hWnd, WMAPP_HOOKMESSAGE);
+
+        /* Configure and enable the notification icon (the app's only UI) */
         g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOK)));
         g_NotificationIcon.SetTooltipText(_T("Captain Hook"));
         g_NotificationIcon.Enable(hWnd, WMAPP_NOTIFYCALLBACK, UID_CAPTAINHOOK);
@@ -90,45 +106,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WMAPP_HOOKMESSAGE:
-        {
-            BOOL keyIsDown = !((DWORD)lParam & 0x80000000);
-            BOOL keyWasDown = ((DWORD)lParam & 0x40000000);
-            BOOL altKeyIsDown = !((DWORD)lParam & 0x20000000);
-            switch (wParam) {
-            case 'A':
-                /* This demonstrates a key event handler that performs one action when a key is pressed
-                and another when the key is released. */
-                if (keyIsDown) {
-                    if (!keyWasDown) {
-                        // Key just pressed (as opposed to being held)
-                        g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOKFISH)));
-                    }
-                }
-                else {
-                    // Key released
-                    g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOK)));
-                }
-                break;
-
-            case 'B':
-                /* This demonstrates a key event handler that performs an action when a key is released
-                and sets a timer to clear the action a fixed time later. This timer is extended every time
-                the key is released. */
-                if (!keyIsDown) {
-                    g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOKBAIT)));
-                    ::SetTimer(hWnd, IDT_KEYSTROKETIMER, 250, NULL);
-                }
-                break;
-
-            case VK_PRIOR: /* Page Up Key */
-                break;
-
-            case VK_NEXT: /* Page Down Key */
-                break;
-            default:
-                break;
-            }
-        }
+        HandleKeyEvent(hWnd, static_cast<WORD>(wParam),
+            !(static_cast<DWORD>(lParam) & 0x80000000), /* Key is down */
+            (static_cast<DWORD>(lParam) & 0x40000000), /* Key was down */
+            !(static_cast<DWORD>(lParam) & 0x20000000)); /* Alt key is down */
         break;
 
     case WM_TIMER:
@@ -174,8 +155,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_DESTROY:
     case WM_ENDSESSION:
+        /* Remove the global keyboard hook. */
         UninstallHook();
+
+        /* Remove the notification icon */
         g_NotificationIcon.Disable();
+
+        /* Quit the app */
         PostQuitMessage(0);
         break;
     default:
@@ -242,9 +228,9 @@ static HWND CreateApplicationWindow(HINSTANCE hInstance)
         0);
 }
 
-// Message handler for about box.
 static INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
+    // Message handler for about box.
     UNREFERENCED_PARAMETER(lParam);
     switch (message) {
     case WM_INITDIALOG:
@@ -258,4 +244,44 @@ static INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
         break;
     }
     return (INT_PTR)FALSE;
+}
+
+static void HandleKeyEvent(HWND hWnd, WORD keycode, BOOL keyIsDown, BOOL keyWasDown, BOOL altKeyIsDown)
+{
+    UNREFERENCED_PARAMETER(altKeyIsDown);
+
+    switch (keycode) {
+    case 'A':
+        /* This demonstrates a key event handler that performs one action when a key is pressed
+        and another when the key is released. */
+        if (keyIsDown) {
+            if (!keyWasDown) {
+                // Key just pressed (as opposed to being held)
+                g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOKFISH)));
+            }
+        }
+        else {
+            // Key released
+            g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOK)));
+        }
+        break;
+
+    case 'B':
+        /* This demonstrates a key event handler that performs an action when a key is released
+        and sets a timer to clear the action a fixed time later. This timer is extended every time
+        the key is released. */
+        if (!keyIsDown) {
+            g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOKBAIT)));
+            ::SetTimer(hWnd, IDT_KEYSTROKETIMER, 250, NULL);
+        }
+        break;
+
+    case VK_PRIOR: /* Page Up Key */
+        break;
+
+    case VK_NEXT: /* Page Down Key */
+        break;
+    default:
+        break;
+    }
 }
