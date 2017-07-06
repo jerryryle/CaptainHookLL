@@ -39,11 +39,10 @@
 //
 
 enum wmapp_messages {
-    WMAPP_HOOKMESSAGE = WM_APP + 1,
-    WMAPP_NOTIFYCALLBACK
+    WMAPP_NOTIFYCALLBACK = WM_APP + 1,
 };
 
-static UINT const UID_CAPTAINHOOK = 1;
+static UINT const UID_CAPTAINHOOKRAW = 1;
 static UINT const IDT_KEYSTROKETIMER = 1;
 
 //
@@ -57,7 +56,7 @@ static HWND CreateApplicationWindow(HINSTANCE hInstance);
 static INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 static BOOL RegisterRawDevice(HWND hWnd);
 static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput);
-static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown);
+static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown, BOOL isSystemKey);
 
 //
 // Global variables
@@ -93,13 +92,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
     case WM_CREATE:
-        /* Install the raw input device. */
+        /* Install the raw input device to trap low level keyboard input. */
         RegisterRawDevice(hWnd);
 
         /* Configure and enable the notification icon (the app's only UI) */
         g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOK)));
         g_NotificationIcon.SetTooltipText(_T("Captain Hook"));
-        g_NotificationIcon.Enable(hWnd, WMAPP_NOTIFYCALLBACK, UID_CAPTAINHOOK);
+        g_NotificationIcon.Enable(hWnd, WMAPP_NOTIFYCALLBACK, UID_CAPTAINHOOKRAW);
         break;
 
     case WM_CLOSE:
@@ -270,9 +269,13 @@ static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput)
 
         // Only process keyboard messages
         if (buffer->header.dwType == RIM_TYPEKEYBOARD) {
-            if ((buffer->data.keyboard.Message == WM_KEYDOWN) || (buffer->data.keyboard.Message == WM_KEYUP)) {
-                BOOL keyIsDown = (buffer->data.keyboard.Message == WM_KEYDOWN);
-                HandleKeyEvent(hWnd, buffer->data.keyboard.VKey, keyIsDown);
+            if ((buffer->data.keyboard.Message == WM_KEYDOWN) || (buffer->data.keyboard.Message == WM_KEYUP) ||
+                (buffer->data.keyboard.Message == WM_SYSKEYDOWN) || (buffer->data.keyboard.Message == WM_SYSKEYUP) )
+            {
+                BOOL keyIsDown = ((buffer->data.keyboard.Message == WM_KEYDOWN) || (buffer->data.keyboard.Message == WM_SYSKEYDOWN));
+                BOOL keyIsSystemKey = ((buffer->data.keyboard.Message == WM_SYSKEYDOWN) || (buffer->data.keyboard.Message == WM_SYSKEYUP));
+
+                HandleKeyEvent(hWnd, buffer->data.keyboard.VKey, keyIsDown, keyIsSystemKey);
             }
         }
     }
@@ -283,8 +286,12 @@ static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput)
     return TRUE;
 }
 
-static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown)
+static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown, BOOL keyIsSystemKey)
 {
+    /* keyIsSystemKey is TRUE if ALT is held. If you don't care about the different between
+       KEY vs ALT-KEY, then you don't need this. */
+    UNREFERENCED_PARAMETER(keyIsSystemKey);
+
     static int count = 0;
     switch (keycode) {
     case 'A':
