@@ -1,15 +1,15 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by CaptainHook.rc
+// Used by CaptainHookRaw.rc
 //
 #define IDC_MYICON                      2
-#define IDD_CAPTAINHOOK_DIALOG          102
+#define IDD_CAPTAINHOOKRAW_DIALOG       102
 #define IDS_APP_TITLE                   103
 #define IDD_ABOUTBOX                    103
 #define IDM_ABOUT                       104
 #define IDM_EXIT                        105
-#define IDI_CAPTAINHOOK                 107
-#define IDC_CAPTAINHOOK                 109
+#define IDI_CAPTAINHOOKRAW              107
+#define IDC_CAPTAINHOOKRAW              109
 #define IDR_MAINFRAME                   128
 #define IDI_NOTIFICATIONHOOK            130
 #define IDI_NOTIFICATIONHOOKBAIT        131
@@ -18,7 +18,7 @@
 #define IDC_STATIC                      -1
 
 // Next default values for new objects
-// 
+//
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NO_MFC                     1

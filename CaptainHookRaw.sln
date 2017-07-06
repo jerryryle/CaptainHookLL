@@ -3,9 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26430.14
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "HookLibrary", "HookLibrary\HookLibrary.vcxproj", "{ED6FFAA6-100B-480D-816A-C86790D34C0B}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CaptainHook", "CaptainHook\CaptainHook.vcxproj", "{EDCB6FF6-0BB2-4659-AC83-C1D9BB1C853E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CaptainHookRaw", "CaptainHookRaw\CaptainHookRaw.vcxproj", "{EDCB6FF6-0BB2-4659-AC83-C1D9BB1C853E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,14 +13,6 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Debug|x64.ActiveCfg = Debug|x64
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Debug|x64.Build.0 = Debug|x64
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Debug|x86.ActiveCfg = Debug|Win32
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Debug|x86.Build.0 = Debug|Win32
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Release|x64.ActiveCfg = Release|x64
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Release|x64.Build.0 = Release|x64
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Release|x86.ActiveCfg = Release|Win32
-		{ED6FFAA6-100B-480D-816A-C86790D34C0B}.Release|x86.Build.0 = Release|Win32
 		{EDCB6FF6-0BB2-4659-AC83-C1D9BB1C853E}.Debug|x64.ActiveCfg = Debug|x64
 		{EDCB6FF6-0BB2-4659-AC83-C1D9BB1C853E}.Debug|x64.Build.0 = Debug|x64
 		{EDCB6FF6-0BB2-4659-AC83-C1D9BB1C853E}.Debug|x86.ActiveCfg = Debug|Win32

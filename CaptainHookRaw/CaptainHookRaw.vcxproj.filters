@@ -1,19 +1,19 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="CaptainHook.cpp" />
+    <ClCompile Include="CaptainHookRaw.cpp" />
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="NotificationIcon.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="CaptainHook.h" />
+    <ClInclude Include="CaptainHookRaw.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="NotificationIcon.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="CaptainHook.rc" />
+    <ResourceCompile Include="CaptainHookRaw.rc" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="resources\NotificationIcon_hook.ico">
@@ -25,7 +25,7 @@
     <Image Include="resources\NotificationIcon_hookfish.ico">
       <Filter>resources</Filter>
     </Image>
-    <Image Include="resources\CaptainHook.ico">
+    <Image Include="resources\CaptainHookRaw.ico">
       <Filter>resources</Filter>
     </Image>
   </ItemGroup>

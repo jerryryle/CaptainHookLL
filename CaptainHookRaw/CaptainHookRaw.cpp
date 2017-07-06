@@ -30,9 +30,8 @@
 
 ------------------------------------------------------------------------- */
 #include "stdafx.h"
-#include "CaptainHook.h"
+#include "CaptainHookRaw.h"
 #include "stdio.h"
-#include "HookLibrary.h"
 #include "NotificationIcon.h"
 
 //
@@ -56,7 +55,9 @@ static void RegisterWindowClass(HINSTANCE hInstance, LPCTSTR pszClassName, LPCTS
 static void ShowContextMenu(HWND hWnd);
 static HWND CreateApplicationWindow(HINSTANCE hInstance);
 static INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
-static void HandleKeyEvent(HWND hWnd, WORD keycode, BOOL keyIsDown, BOOL keyWasDown, BOOL altKeyIsDown);
+static BOOL RegisterRawDevice(HWND hWnd);
+static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput);
+static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown);
 
 //
 // Global variables
@@ -92,8 +93,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
     case WM_CREATE:
-        /* Install the global keyboard hook. */
-        InstallHook(hWnd, WMAPP_HOOKMESSAGE);
+        /* Install the raw input device. */
+        RegisterRawDevice(hWnd);
 
         /* Configure and enable the notification icon (the app's only UI) */
         g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOK)));
@@ -101,15 +102,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         g_NotificationIcon.Enable(hWnd, WMAPP_NOTIFYCALLBACK, UID_CAPTAINHOOK);
         break;
 
-    case WM_CLOSE: 
+    case WM_CLOSE:
         DestroyWindow(hWnd);
         break;
 
-    case WMAPP_HOOKMESSAGE:
-        HandleKeyEvent(hWnd, static_cast<WORD>(wParam),
-            !(static_cast<DWORD>(lParam) & 0x80000000), /* Key is down */
-            (static_cast<DWORD>(lParam) & 0x40000000), /* Key was down */
-            !(static_cast<DWORD>(lParam) & 0x20000000)); /* Alt key is down */
+    case WM_INPUT:
+        HandleRawInput(hWnd, reinterpret_cast<HRAWINPUT>(lParam));
         break;
 
     case WM_TIMER:
@@ -155,9 +153,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_DESTROY:
     case WM_ENDSESSION:
-        /* Remove the global keyboard hook. */
-        UninstallHook();
-
         /* Remove the notification icon */
         g_NotificationIcon.Disable();
 
@@ -190,7 +185,7 @@ static void ShowContextMenu(HWND hWnd)
     POINT pt;
     GetCursorPos(&pt);
 
-    HMENU hMenu = LoadMenu(g_hInstance, MAKEINTRESOURCE(IDC_CAPTAINHOOK));
+    HMENU hMenu = LoadMenu(g_hInstance, MAKEINTRESOURCE(IDC_CAPTAINHOOKRAW));
     if (hMenu) {
         // We want to display only what's under the "file" menu.
         HMENU hSubMenu = GetSubMenu(hMenu, 0);
@@ -215,7 +210,7 @@ static void ShowContextMenu(HWND hWnd)
 
 static HWND CreateApplicationWindow(HINSTANCE hInstance)
 {
-    RegisterWindowClass(hInstance, _T("__CaptainHook"), NULL, WndProc, IDI_CAPTAINHOOK);
+    RegisterWindowClass(hInstance, _T("__CaptainHook"), NULL, WndProc, IDI_CAPTAINHOOKRAW);
 
     return ::CreateWindowEx(0,
         _T("__CaptainHook"),
@@ -246,19 +241,61 @@ static INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
     return (INT_PTR)FALSE;
 }
 
-static void HandleKeyEvent(HWND hWnd, WORD keycode, BOOL keyIsDown, BOOL keyWasDown, BOOL altKeyIsDown)
+static BOOL RegisterRawDevice(HWND hWnd)
 {
-    UNREFERENCED_PARAMETER(altKeyIsDown);
+    RAWINPUTDEVICE rid;
 
+    rid.usUsagePage = 0x01;
+    rid.usUsage = 0x06;
+    rid.dwFlags = RIDEV_INPUTSINK;
+    rid.hwndTarget = hWnd;
+
+    if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput)
+{
+    UINT dataSize;
+
+    // Request size of the raw input buffer
+    GetRawInputData(hRawInput, RID_INPUT, NULL, &dataSize, sizeof(RAWINPUTHEADER));
+
+    // Allocate buffer for raw input data
+    RAWINPUT *buffer = reinterpret_cast<RAWINPUT*>(HeapAlloc(GetProcessHeap(), 0, dataSize));
+
+    if (GetRawInputData(hRawInput, RID_INPUT, buffer, &dataSize, sizeof(RAWINPUTHEADER))) {
+
+        // Only process keyboard messages
+        if (buffer->header.dwType == RIM_TYPEKEYBOARD) {
+            if ((buffer->data.keyboard.Message == WM_KEYDOWN) || (buffer->data.keyboard.Message == WM_KEYUP)) {
+                BOOL keyIsDown = (buffer->data.keyboard.Message == WM_KEYDOWN);
+                HandleKeyEvent(hWnd, buffer->data.keyboard.VKey, keyIsDown);
+            }
+        }
+    }
+
+    // Free the raw input buffer
+    HeapFree(GetProcessHeap(), 0, buffer);
+
+    return TRUE;
+}
+
+static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown)
+{
+    static int count = 0;
     switch (keycode) {
     case 'A':
         /* This demonstrates a key event handler that performs one action when a key is pressed
         and another when the key is released. */
         if (keyIsDown) {
-            if (!keyWasDown) {
-                // Key just pressed (as opposed to being held)
-                g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOKFISH)));
-            }
+            /* Note that this will occurr repeatedly while a key is held. If you care about
+                catching only the transition from released to held, you'll need to track that
+                state yourself. */
+            // Key pressed or held.
+            g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOKFISH)));
         }
         else {
             // Key released
