@@ -22,9 +22,9 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{EDCB6FF6-0BB2-4659-AC83-C1D9BB1C853E}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>CaptainHookRaw</RootNamespace>
+    <RootNamespace>CaptainHookLL</RootNamespace>
     <WindowsTargetPlatformVersion>10.0.15063.0</WindowsTargetPlatformVersion>
-    <ProjectName>CaptainHookRaw</ProjectName>
+    <ProjectName>CaptainHookLL</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -144,14 +144,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="CaptainHookRaw.h" />
+    <ClInclude Include="CaptainHookLL.h" />
     <ClInclude Include="NotificationIcon.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="CaptainHookRaw.cpp" />
+    <ClCompile Include="CaptainHookLL.cpp" />
     <ClCompile Include="NotificationIcon.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -161,10 +161,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="CaptainHookRaw.rc" />
+    <ResourceCompile Include="CaptainHookLL.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="resources\CaptainHookRaw.ico" />
+    <Image Include="resources\CaptainHookLL.ico" />
     <Image Include="resources\NotificationIcon_hook.ico" />
     <Image Include="resources\NotificationIcon_hookbait.ico" />
     <Image Include="resources\NotificationIcon_hookfish.ico" />

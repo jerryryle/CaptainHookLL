@@ -30,7 +30,7 @@
 
 ------------------------------------------------------------------------- */
 #include "stdafx.h"
-#include "CaptainHookRaw.h"
+#include "CaptainHookLL.h"
 #include "stdio.h"
 #include "NotificationIcon.h"
 
@@ -42,7 +42,7 @@ enum wmapp_messages {
     WMAPP_NOTIFYCALLBACK = WM_APP + 1,
 };
 
-static UINT const UID_CAPTAINHOOKRAW = 1;
+static UINT const UID_CAPTAINHOOKLL = 1;
 static UINT const IDT_KEYSTROKETIMER = 1;
 
 //
@@ -54,9 +54,10 @@ static void RegisterWindowClass(HINSTANCE hInstance, LPCTSTR pszClassName, LPCTS
 static void ShowContextMenu(HWND hWnd);
 static HWND CreateApplicationWindow(HINSTANCE hInstance);
 static INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
-static BOOL RegisterRawDevice(HWND hWnd);
-static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput);
-static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown, BOOL isSystemKey);
+static HHOOK RegisterKeyboardHook();
+static BOOL UnregisterKeyboardHook(HHOOK hhk);
+static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam);
+static BOOL HandleKeyEvent(HWND hWnd, DWORD keycode, BOOL keyIsDown, BOOL isSystemKey);
 
 //
 // Global variables
@@ -64,6 +65,7 @@ static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown, BOOL isSys
 
 static HWND g_hWnd = NULL;
 static HINSTANCE g_hInstance = NULL;
+static HHOOK g_hLLHook = NULL;
 static CNotificationIcon g_NotificationIcon;
 
 
@@ -92,21 +94,17 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
     case WM_CREATE:
-        /* Install the raw input device to trap low level keyboard input. */
-        RegisterRawDevice(hWnd);
+        /* Install the low level hook to trap keyboard input. */
+        g_hLLHook = RegisterKeyboardHook();
 
         /* Configure and enable the notification icon (the app's only UI) */
         g_NotificationIcon.SetIcon(::LoadIcon(g_hInstance, MAKEINTRESOURCE(IDI_NOTIFICATIONHOOK)));
         g_NotificationIcon.SetTooltipText(_T("Captain Hook"));
-        g_NotificationIcon.Enable(hWnd, WMAPP_NOTIFYCALLBACK, UID_CAPTAINHOOKRAW);
+        g_NotificationIcon.Enable(hWnd, WMAPP_NOTIFYCALLBACK, UID_CAPTAINHOOKLL);
         break;
 
     case WM_CLOSE:
         DestroyWindow(hWnd);
-        break;
-
-    case WM_INPUT:
-        HandleRawInput(hWnd, reinterpret_cast<HRAWINPUT>(lParam));
         break;
 
     case WM_TIMER:
@@ -152,6 +150,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_DESTROY:
     case WM_ENDSESSION:
+        /* Remove the low-level keyboard hook */
+        UnregisterKeyboardHook(g_hLLHook);
+
         /* Remove the notification icon */
         g_NotificationIcon.Disable();
 
@@ -184,7 +185,7 @@ static void ShowContextMenu(HWND hWnd)
     POINT pt;
     GetCursorPos(&pt);
 
-    HMENU hMenu = LoadMenu(g_hInstance, MAKEINTRESOURCE(IDC_CAPTAINHOOKRAW));
+    HMENU hMenu = LoadMenu(g_hInstance, MAKEINTRESOURCE(IDC_CAPTAINHOOKLL));
     if (hMenu) {
         // We want to display only what's under the "file" menu.
         HMENU hSubMenu = GetSubMenu(hMenu, 0);
@@ -209,7 +210,7 @@ static void ShowContextMenu(HWND hWnd)
 
 static HWND CreateApplicationWindow(HINSTANCE hInstance)
 {
-    RegisterWindowClass(hInstance, _T("__CaptainHook"), NULL, WndProc, IDI_CAPTAINHOOKRAW);
+    RegisterWindowClass(hInstance, _T("__CaptainHook"), NULL, WndProc, IDI_CAPTAINHOOKLL);
 
     return ::CreateWindowEx(0,
         _T("__CaptainHook"),
@@ -240,53 +241,39 @@ static INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lPa
     return (INT_PTR)FALSE;
 }
 
-static BOOL RegisterRawDevice(HWND hWnd)
+static HHOOK RegisterKeyboardHook()
 {
-    RAWINPUTDEVICE rid;
-
-    rid.usUsagePage = 0x01;
-    rid.usUsage = 0x06;
-    rid.dwFlags = RIDEV_INPUTSINK;
-    rid.hwndTarget = hWnd;
-
-    if (!RegisterRawInputDevices(&rid, 1, sizeof(RAWINPUTDEVICE))) {
-        return FALSE;
-    }
-    return TRUE;
+    return ::SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, g_hInstance, 0);
 }
 
-static BOOL HandleRawInput(HWND hWnd, HRAWINPUT hRawInput)
+static BOOL UnregisterKeyboardHook(HHOOK hhk)
 {
-    UINT dataSize;
+    if (!hhk) {
+        return FALSE;
+    }
+    return ::UnhookWindowsHookEx(hhk);
+}
 
-    // Request size of the raw input buffer
-    GetRawInputData(hRawInput, RID_INPUT, NULL, &dataSize, sizeof(RAWINPUTHEADER));
-
-    // Allocate buffer for raw input data
-    RAWINPUT *buffer = reinterpret_cast<RAWINPUT*>(HeapAlloc(GetProcessHeap(), 0, dataSize));
-
-    if (GetRawInputData(hRawInput, RID_INPUT, buffer, &dataSize, sizeof(RAWINPUTHEADER))) {
-
-        // Only process keyboard messages
-        if (buffer->header.dwType == RIM_TYPEKEYBOARD) {
-            if ((buffer->data.keyboard.Message == WM_KEYDOWN) || (buffer->data.keyboard.Message == WM_KEYUP) ||
-                (buffer->data.keyboard.Message == WM_SYSKEYDOWN) || (buffer->data.keyboard.Message == WM_SYSKEYUP) )
-            {
-                BOOL keyIsDown = ((buffer->data.keyboard.Message == WM_KEYDOWN) || (buffer->data.keyboard.Message == WM_SYSKEYDOWN));
-                BOOL keyIsSystemKey = ((buffer->data.keyboard.Message == WM_SYSKEYDOWN) || (buffer->data.keyboard.Message == WM_SYSKEYUP));
-
-                HandleKeyEvent(hWnd, buffer->data.keyboard.VKey, keyIsDown, keyIsSystemKey);
+static LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
+{
+    if (nCode == HC_ACTION) {
+        if ((wParam == WM_KEYDOWN) || (wParam == WM_KEYUP) ||
+            (wParam == WM_SYSKEYDOWN) || (wParam == WM_SYSKEYUP)) {
+            KBDLLHOOKSTRUCT *kbhook = reinterpret_cast<KBDLLHOOKSTRUCT *>(lParam);
+            BOOL keyIsDown = ((wParam == WM_KEYDOWN) || (wParam == WM_SYSKEYDOWN));
+            BOOL keyIsSystemKey = ((wParam == WM_SYSKEYDOWN) || (wParam == WM_SYSKEYUP));
+            BOOL shouldKeepProcessing = HandleKeyEvent(g_hWnd, kbhook->vkCode, keyIsDown, keyIsSystemKey);
+            if (!shouldKeepProcessing) {
+                // Prevent this keystroke from making it further in the hook chain or to the application.
+                return 1;
             }
         }
     }
 
-    // Free the raw input buffer
-    HeapFree(GetProcessHeap(), 0, buffer);
-
-    return TRUE;
+    return ::CallNextHookEx(NULL, nCode, wParam, lParam);
 }
 
-static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown, BOOL keyIsSystemKey)
+static BOOL HandleKeyEvent(HWND hWnd, DWORD keycode, BOOL keyIsDown, BOOL keyIsSystemKey)
 {
     /* keyIsSystemKey is TRUE if ALT is held. If you don't care about the different between
        KEY vs ALT-KEY, then you don't need this. */
@@ -326,6 +313,9 @@ static void HandleKeyEvent(HWND hWnd, USHORT keycode, BOOL keyIsDown, BOOL keyIs
     case VK_NEXT: /* Page Down Key */
         break;
     default:
-        break;
+        // If we're not processing the key, return TRUE to allow it to be passed to the application.
+        return TRUE;
     }
+    // If we processed the key, return FALSE to prevent it from reaching the application.
+    return FALSE;
 }

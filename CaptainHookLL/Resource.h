@@ -1,15 +1,15 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by CaptainHookRaw.rc
+// Used by CaptainHookLL.rc
 //
 #define IDC_MYICON                      2
-#define IDD_CAPTAINHOOKRAW_DIALOG       102
+#define IDD_CAPTAINHOOKLL_DIALOG        102
 #define IDS_APP_TITLE                   103
 #define IDD_ABOUTBOX                    103
 #define IDM_ABOUT                       104
 #define IDM_EXIT                        105
-#define IDI_CAPTAINHOOKRAW              107
-#define IDC_CAPTAINHOOKRAW              109
+#define IDI_CAPTAINHOOKLL               107
+#define IDC_CAPTAINHOOKLL               109
 #define IDR_MAINFRAME                   128
 #define IDI_NOTIFICATIONHOOK            130
 #define IDI_NOTIFICATIONHOOKBAIT        131
